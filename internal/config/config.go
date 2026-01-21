@@ -26,14 +26,16 @@ type Slave struct {
 	ID        int        `yaml:"id"`
 	Name      string     `yaml:"name"`
 	Registers []Register `yaml:"registers"`
+	Offset    int        `yaml:"offset"`
 }
 
 type Register struct {
-	Address  uint16 `yaml:"address"`
+	Address  int    `yaml:"address"`
 	Function uint8  `yaml:"function"`
 	Name     string `yaml:"name"`
 	Datatype string `yaml:"datatype"`
 	Unit     string `yaml:"unit"`
+	Words    int    `yaml:"words"`
 }
 
 // Load reads a YAML config file from path and unmarshals it into Config.

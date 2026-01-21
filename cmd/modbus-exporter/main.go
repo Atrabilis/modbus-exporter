@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/atrabilis/modbus-exporter/internal/config"
-	"github.com/goburrow/modbus"
+	imodbus "github.com/atrabilis/modbus-exporter/internal/modbus"
+	gomodbus "github.com/goburrow/modbus"
 )
 
 func main() {
@@ -27,19 +28,17 @@ func main() {
 
 	log.Printf("config loaded, poll_interval=%s", cfg.PollInterval)
 
-	// --- VERY SIMPLE MODBUS TEST ---
 	for _, dev := range cfg.Devices {
 		if dev.Protocol != "modbus-tcp" {
 			log.Printf("device %s: unsupported protocol %s", dev.Name, dev.Protocol)
 			continue
 		}
 
-		address := fmt.Sprintf("%s:%d", dev.Address, dev.Port)
-		log.Printf("connecting to device %s at %s", dev.Name, address)
+		addr := fmt.Sprintf("%s:%d", dev.Address, dev.Port)
+		log.Printf("connecting to device %s at %s", dev.Name, addr)
 
-		handler := modbus.NewTCPClientHandler(address)
+		handler := gomodbus.NewTCPClientHandler(addr)
 		handler.Timeout = dev.Timeout
-		handler.SlaveId = 1 // will iterate later
 		handler.IdleTimeout = 10 * time.Second
 
 		if err := handler.Connect(); err != nil {
@@ -48,39 +47,96 @@ func main() {
 		}
 		defer handler.Close()
 
-		client := modbus.NewClient(handler)
+		client := gomodbus.NewClient(handler)
 
-		// Take the FIRST slave and FIRST register only (for now)
-		slave := dev.Slaves[0]
-		handler.SlaveId = byte(slave.ID)
+		for _, slave := range dev.Slaves {
+			handler.SlaveId = byte(slave.ID)
 
-		reg := slave.Registers[0]
-		log.Printf(
-			"reading device=%s slave=%d register=%d function=%d",
-			dev.Name,
-			slave.ID,
-			reg.Address,
-			reg.Function,
-		)
+			for _, reg := range slave.Registers {
+				effective := reg.Address - slave.Offset
+				if effective < 0 {
+					log.Printf(
+						"device=%s slave=%d register=%d offset=%d -> negative effective address",
+						dev.Name,
+						slave.ID,
+						reg.Address,
+						slave.Offset,
+					)
+					continue
+				}
 
-		var raw []byte
+				log.Printf(
+					"reading device=%s slave=%d register=%d (effective=%d) words=%d function=%d datatype=%s",
+					dev.Name,
+					slave.ID,
+					reg.Address,
+					effective,
+					reg.Words,
+					reg.Function,
+					reg.Datatype,
+				)
 
-		switch reg.Function {
-		case 3:
-			raw, err = client.ReadHoldingRegisters(reg.Address, 2)
-		case 4:
-			raw, err = client.ReadInputRegisters(reg.Address, 2)
-		default:
-			log.Printf("unsupported function code %d", reg.Function)
-			continue
+				var raw []byte
+
+				switch reg.Function {
+				case 3:
+					raw, err = client.ReadHoldingRegisters(
+						uint16(effective),
+						uint16(reg.Words),
+					)
+				case 4:
+					raw, err = client.ReadInputRegisters(
+						uint16(effective),
+						uint16(reg.Words),
+					)
+				default:
+					log.Printf("unsupported function code %d", reg.Function)
+					continue
+				}
+
+				if err != nil {
+					log.Printf(
+						"read error device=%s slave=%d register=%d: %v",
+						dev.Name,
+						slave.ID,
+						reg.Address,
+						err,
+					)
+					continue
+				}
+
+				var value float64
+
+				switch reg.Datatype {
+				case "F32BE":
+					value = float64(imodbus.F32BE(raw))
+				case "F32LE":
+					value = float64(imodbus.F32LE(raw))
+				case "F32CDAB":
+					value = float64(imodbus.F32CDAB(raw))
+				case "F32BADC":
+					value = float64(imodbus.F32BADC(raw))
+				case "S64BE":
+					value = float64(imodbus.S64BE(raw))
+				case "U64BE":
+					value = float64(imodbus.U64BE(raw))
+				case "F64BE":
+					value = imodbus.F64BE(raw)
+				default:
+					log.Printf("unsupported datatype %q", reg.Datatype)
+					continue
+				}
+
+				log.Printf(
+					"value device=%s slave=%d %s = %.6f %s",
+					dev.Name,
+					slave.ID,
+					reg.Name,
+					value,
+					reg.Unit,
+				)
+			}
 		}
-
-		if err != nil {
-			log.Printf("read error: %v", err)
-			continue
-		}
-
-		log.Printf("raw bytes: %x", raw)
 	}
 
 	log.Printf("modbus test finished")

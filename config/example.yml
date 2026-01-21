@@ -6,7 +6,7 @@ poll_interval: 60s   # How often Modbus is polled (NOT scrape interval)
 
 devices:
   - name: "ion_7400"
-    protocol: "modbus-tcp" # dor now only modbus-tcp is supported
+    protocol: "modbus-tcp" # for now only modbus-tcp is supported
     address: "192.168.1.3"
     port: 502
     timeout: 1s
@@ -15,33 +15,44 @@ devices:
       - id: 1
         name: "ion_7400_1"
 
+        # Offset applied to all registers of this slave.
+        # effective_address = address - offset
+        # Example: manuals usually start at 30001, Modbus libraries expect 0-based.
+        offset: 0
+
         registers:
           - address: 3020
-            function: 3            # Holding Registers
+            function: 3
+            words: 2
             name: "voltage_ll_ab"
-            datatype: "float32_be"
+            datatype: "F32BE"
             unit: "V"
+
 
           - address: 3022
             function: 3
+            words: 2
             name: "voltage_ll_bc"
-            datatype: "float32_be"
+            datatype: "F32BE"
             unit: "V"
 
           - address: 3024
             function: 3
+            words: 2
             name: "voltage_ll_ca"
-            datatype: "float32_be"
+            datatype: "F32BE"
             unit: "V"
 
           - address: 3060
             function: 3
+            words: 2
             name: "active_power_total"
-            datatype: "float32_be"
+            datatype: "F32BE"
             unit: "W"
 
           - address: 3110
             function: 3
+            words: 2
             name: "frequency"
-            datatype: "float32_be"
+            datatype: "F32BE"
             unit: "Hz"
