@@ -1,5 +1,64 @@
-# Example configuration for modbus-exporter
-# Minimum configuration to poll a Modbus TCP device.
+# This configuration defines how Modbus devices are polled
+# and how their registers are exposed as Prometheus metrics.
+#
+# The exporter assumes the configuration is correct and does not
+# attempt to infer offsets, datatypes, or scaling automatically.
+
+
+# Supported datatypes (case-sensitive):
+#
+# Integer:
+#   - U8       : Unsigned 8-bit (low byte)
+#   - U16      : Unsigned 16-bit, big-endian
+#   - S16      : Signed 16-bit, big-endian
+#   - U32      : Unsigned 32-bit, big-endian
+#   - S32      : Signed 32-bit, big-endian
+#   - U32LE    : Unsigned 32-bit, little-endian by word (CDAB)
+#   - S32LE    : Signed 32-bit, little-endian by word
+#   - U64BE    : Unsigned 64-bit, big-endian
+#   - S64BE    : Signed 64-bit, big-endian
+#
+# Float:
+#   - F32BE    : Float32, big-endian (ABCD)
+#   - F32LE    : Float32, little-endian by word (CDAB)
+#   - F32CDAB  : Float32, word-swapped
+#   - F32BADC  : Float32, byte-swapped
+#   - F64BE    : Float64, big-endian
+#
+# String:
+#   - UTF8     : C-style UTF-8 string (NUL-terminated / padded)
+#
+# Notes:
+# - Modbus registers are 16-bit words.
+# - "words" indicates how many 16-bit registers are read.
+# - Offset is applied as: effective_register = register - offset
+
+# Offset semantics:
+# - Offset is applied per slave, not per device.
+# - Effective Modbus address is computed as:
+#     effective_register = register - offset
+# - Offset depends on how the vendor documents register maps.
+#   Some devices mix 0-based and 1-based addressing across register ranges.
+# - It is the user's responsibility to set the correct offset for each slave.
+
+# Words vs datatype:
+# - words must match the size required by datatype:
+#     * 1 word  -> U8, U16, S16
+#     * 2 words -> U32, S32, U32LE, F32*
+#     * 4 words -> U64BE, S64BE, F64BE
+# - Mismatched word counts may result in incorrect values.
+
+# UTF8 datatype:
+# - UTF8 registers are read and decoded correctly,
+#   but are NOT exported as Prometheus metrics.
+# - Prometheus only supports numeric samples.
+# - UTF8 registers may be used for debugging or future metadata endpoints.
+
+# Gain:
+# - Gain is applied after decoding the raw register value.
+# - Final value = decoded_value * gain
+# - Use gain to apply scaling factors documented by the vendor.
+
 
 poll_interval: 60s
 
@@ -13,35 +72,104 @@ devices:
     slaves:
       - name: "ion_7400_1"
         slave_id: 1
-        offset: 0
-
+        offset: 1
         modbus_registers:
-          - register: 3000
+          - register: 3110
             function_code: 3
-            name: "current_a"
-            description: "Current A"
+            name: "frequency"
+            description: "frequency"
             words: 2
             datatype: "F32BE"
-            unit: "A"
+            unit: "Hz"
             gain: 1
             flags:
 
-          - register: 3002
+  - name: "ion_7400_2"
+    protocol: "modbus-tcp"
+    address: "192.168.1.4"
+    port: 502
+    timeout: 1s
+
+    slaves:
+      - name: "ion_7400_2"
+        slave_id: 1
+        offset: 1
+        modbus_registers:
+          - register: 3110
             function_code: 3
-            name: "current_b"
-            description: "Current B"
+            name: "frequency"
+            description: "frequency"
             words: 2
             datatype: "F32BE"
-            unit: "A"
+            unit: "Hz"
             gain: 1
             flags:
 
-          - register: 3004
-            function_code: 3
-            name: "current_c"
-            description: "Current C"
-            words: 2
-            datatype: "F32BE"
-            unit: "A"
-            gain: 1
+  - name: "logger3000"
+    protocol: "modbus-tcp"
+    address: "192.168.1.205"
+    port: 502
+    timeout: 1s
+
+    slaves:
+      - name: "SG250HX_1"
+        slave_id: 1
+        offset: 1
+        modbus_registers:
+          - register: 5008             
+            function_code: 4
+            name: "internal_temperature"
+            description: "Internal temperature"
+            words: 1
+            datatype: "S16"
+            unit: "°C"
+            gain: 0.1
+
+      - name: "SG250HX_2"
+        slave_id: 2
+        offset: 1
+        modbus_registers:
+          - register: 5008
+            function_code: 4
+            name: "internal_temperature"
+            description: "Internal temperature"
+            words: 1
+            datatype: "S16"
+            unit: "°C"
+            gain: 0.1
+
+  - name: "logger3000_2"
+    protocol: "modbus-tcp"
+    address: "192.168.1.206"
+    port: 502
+    timeout: 1s
+
+    slaves:
+      - name: "SG250HX_8"
+        slave_id: 1
+        offset: 1
+        modbus_registers:
+          - register: 5035             
+            function_code: 4
+            name: "power_factor"
+            description: "Power factor"
+            words: 1
+            datatype: "S16"
+            unit: ""
+            gain: 0.001
             flags:
+
+      - name: "SG250HX_102"
+        slave_id: 3
+        offset: 1
+        modbus_registers:
+          - register: 5001
+            function_code: 4
+            name: "nominal_active_power"
+            description: "Nominal active power"
+            words: 1
+            datatype: "U16"
+            unit: "kW"
+            gain: 0.1
+            flags:
+
