@@ -3,9 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
+	"time"
 
 	"github.com/atrabilis/modbus-exporter/internal/config"
+	"github.com/goburrow/modbus"
 )
 
 func main() {
@@ -22,18 +25,63 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Minimal proof that config was parsed correctly
-	fmt.Printf("Config loaded successfully\n")
-	fmt.Printf("Poll interval: %s\n", cfg.PollInterval)
-	fmt.Printf("Devices: %d\n", len(cfg.Devices))
+	log.Printf("config loaded, poll_interval=%s", cfg.PollInterval)
 
-	for _, d := range cfg.Devices {
-		fmt.Printf("- device=%s protocol=%s address=%s:%d slaves=%d\n",
-			d.Name,
-			d.Protocol,
-			d.Address,
-			d.Port,
-			len(d.Slaves),
+	// --- VERY SIMPLE MODBUS TEST ---
+	for _, dev := range cfg.Devices {
+		if dev.Protocol != "modbus-tcp" {
+			log.Printf("device %s: unsupported protocol %s", dev.Name, dev.Protocol)
+			continue
+		}
+
+		address := fmt.Sprintf("%s:%d", dev.Address, dev.Port)
+		log.Printf("connecting to device %s at %s", dev.Name, address)
+
+		handler := modbus.NewTCPClientHandler(address)
+		handler.Timeout = dev.Timeout
+		handler.SlaveId = 1 // will iterate later
+		handler.IdleTimeout = 10 * time.Second
+
+		if err := handler.Connect(); err != nil {
+			log.Printf("device %s: connect error: %v", dev.Name, err)
+			continue
+		}
+		defer handler.Close()
+
+		client := modbus.NewClient(handler)
+
+		// Take the FIRST slave and FIRST register only (for now)
+		slave := dev.Slaves[0]
+		handler.SlaveId = byte(slave.ID)
+
+		reg := slave.Registers[0]
+		log.Printf(
+			"reading device=%s slave=%d register=%d function=%d",
+			dev.Name,
+			slave.ID,
+			reg.Address,
+			reg.Function,
 		)
+
+		var raw []byte
+
+		switch reg.Function {
+		case 3:
+			raw, err = client.ReadHoldingRegisters(reg.Address, 2)
+		case 4:
+			raw, err = client.ReadInputRegisters(reg.Address, 2)
+		default:
+			log.Printf("unsupported function code %d", reg.Function)
+			continue
+		}
+
+		if err != nil {
+			log.Printf("read error: %v", err)
+			continue
+		}
+
+		log.Printf("raw bytes: %x", raw)
 	}
+
+	log.Printf("modbus test finished")
 }
