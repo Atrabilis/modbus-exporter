@@ -1,58 +1,47 @@
 # Example configuration for modbus-exporter
-# This file shows the minimum required fields to poll
-# a Modbus TCP device and expose its data.
+# Minimum configuration to poll a Modbus TCP device.
 
-poll_interval: 60s   # How often Modbus is polled (NOT scrape interval)
+poll_interval: 60s
 
 devices:
   - name: "ion_7400"
-    protocol: "modbus-tcp" # for now only modbus-tcp is supported
+    protocol: "modbus-tcp"
     address: "192.168.1.3"
     port: 502
     timeout: 1s
 
     slaves:
-      - id: 1
-        name: "ion_7400_1"
-
-        # Offset applied to all registers of this slave.
-        # effective_address = address - offset
-        # Example: manuals usually start at 30001, Modbus libraries expect 0-based.
+      - name: "ion_7400_1"
+        slave_id: 1
         offset: 0
 
-        registers:
-          - address: 3020
-            function: 3
+        modbus_registers:
+          - register: 3000
+            function_code: 3
+            name: "current_a"
+            description: "Current A"
             words: 2
-            name: "voltage_ll_ab"
             datatype: "F32BE"
-            unit: "V"
+            unit: "A"
+            gain: 1
+            flags:
 
-
-          - address: 3022
-            function: 3
+          - register: 3002
+            function_code: 3
+            name: "current_b"
+            description: "Current B"
             words: 2
-            name: "voltage_ll_bc"
             datatype: "F32BE"
-            unit: "V"
+            unit: "A"
+            gain: 1
+            flags:
 
-          - address: 3024
-            function: 3
+          - register: 3004
+            function_code: 3
+            name: "current_c"
+            description: "Current C"
             words: 2
-            name: "voltage_ll_ca"
             datatype: "F32BE"
-            unit: "V"
-
-          - address: 3060
-            function: 3
-            words: 2
-            name: "active_power_total"
-            datatype: "F32BE"
-            unit: "W"
-
-          - address: 3110
-            function: 3
-            words: 2
-            name: "frequency"
-            datatype: "F32BE"
-            unit: "Hz"
+            unit: "A"
+            gain: 1
+            flags:

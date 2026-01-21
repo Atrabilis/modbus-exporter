@@ -50,16 +50,16 @@ func main() {
 		client := gomodbus.NewClient(handler)
 
 		for _, slave := range dev.Slaves {
-			handler.SlaveId = byte(slave.ID)
+			handler.SlaveId = byte(slave.SlaveID)
 
 			for _, reg := range slave.Registers {
-				effective := reg.Address - slave.Offset
+				effective := reg.Register - slave.Offset
 				if effective < 0 {
 					log.Printf(
 						"device=%s slave=%d register=%d offset=%d -> negative effective address",
 						dev.Name,
-						slave.ID,
-						reg.Address,
+						slave.SlaveID,
+						reg.Register,
 						slave.Offset,
 					)
 					continue
@@ -68,17 +68,17 @@ func main() {
 				log.Printf(
 					"reading device=%s slave=%d register=%d (effective=%d) words=%d function=%d datatype=%s",
 					dev.Name,
-					slave.ID,
-					reg.Address,
+					slave.SlaveID,
+					reg.Register,
 					effective,
 					reg.Words,
-					reg.Function,
+					reg.FunctionCode,
 					reg.Datatype,
 				)
 
 				var raw []byte
 
-				switch reg.Function {
+				switch reg.FunctionCode {
 				case 3:
 					raw, err = client.ReadHoldingRegisters(
 						uint16(effective),
@@ -90,7 +90,7 @@ func main() {
 						uint16(reg.Words),
 					)
 				default:
-					log.Printf("unsupported function code %d", reg.Function)
+					log.Printf("unsupported function code %d", reg.FunctionCode)
 					continue
 				}
 
@@ -98,8 +98,8 @@ func main() {
 					log.Printf(
 						"read error device=%s slave=%d register=%d: %v",
 						dev.Name,
-						slave.ID,
-						reg.Address,
+						slave.SlaveID,
+						reg.Register,
 						err,
 					)
 					continue
@@ -130,7 +130,7 @@ func main() {
 				log.Printf(
 					"value device=%s slave=%d %s = %.6f %s",
 					dev.Name,
-					slave.ID,
+					slave.SlaveID,
 					reg.Name,
 					value,
 					reg.Unit,
