@@ -24,18 +24,21 @@ func New(addr string, store *store.Store) *Server {
 func (s *Server) Run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/metrics", s.handleMetrics)
-
+	mux.HandleFunc("/health", s.handleHealth)
 	log.Printf("http server listening on %s", s.addr)
 	return http.ListenAndServe(s.addr, mux)
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
 
 func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	samples := s.store.Snapshot()
 
-	// Content-Type correcto para Prometheus
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 
-	// Métrica base por registro
 	for _, sm := range samples {
 		fmt.Fprintf(
 			w,
@@ -50,7 +53,6 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	// Métrica de freshness (opcional pero muy útil)
 	now := time.Now()
 	for _, sm := range samples {
 		age := now.Sub(sm.Timestamp).Seconds()
