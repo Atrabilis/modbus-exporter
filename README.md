@@ -16,6 +16,15 @@ Before running:
 
 ---
 
+## Supported Platforms
+
+This image is published as a multi-architecture Docker manifest and can run on:
+- linux/amd64 
+- linux/arm64 
+- linux/arm/v7 
+- linux/arm/v6 
+- linux/386 
+
 ## Features
 
 - Modbus TCP polling
