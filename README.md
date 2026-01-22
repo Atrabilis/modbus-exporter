@@ -18,7 +18,31 @@ Prometheus exporter for Modbus devices.
 
 ## Quick start
 
-Build locally:
+Binary:
+
+```bash
+go build -o modbus-exporter ./cmd/modbus-exporter
+./modbus-exporter --config config.yml
+```
+
+Docker:
+
+```bash
+docker run -d -p 9105:9105 \
+  -v $(pwd)/config.yml:/etc/modbus-exporter/config.yml:ro \
+  atrabilis/modbus-exporter:v0.1.0 \
+  --config /etc/modbus-exporter/config.yml
+```
+
+Metrics: http://localhost:9105/metrics
+
+---
+
+## Usage
+
+### Binary
+
+Build:
 
 ```bash
 go build -o modbus-exporter ./cmd/modbus-exporter
@@ -26,21 +50,48 @@ go build -o modbus-exporter ./cmd/modbus-exporter
 
 Run:
 
-```
+```bash
 ./modbus-exporter --config config.yml
+./modbus-exporter --config config.yml --listen :9105
+./modbus-exporter --config config.yml --debug
 ```
 
-Or with docker with a docker-compose like the one below
+### Docker
 
+Run with published image:
+
+```bash
+docker run -d \
+  -p 9105:9105 \
+  -v $(pwd)/config.yml:/etc/modbus-exporter/config.yml:ro \
+  atrabilis/modbus-exporter:v0.1.0 \
+  --config /etc/modbus-exporter/config.yml
 ```
-sudo docker compose up -d
+
+Or build and run:
+
+```bash
+docker build -t modbus-exporter .
+docker run -d \
+  -p 9105:9105 \
+  -v $(pwd)/config.yml:/etc/modbus-exporter/config.yml:ro \
+  modbus-exporter \
+  --config /etc/modbus-exporter/config.yml
 ```
 
-Metrics:
+### Command-line flags
 
-- http://localhost:9105/metrics
+- `--config <path>` — config file path (default: `config/example.yml`)
+- `--listen <address>` — HTTP listen address (default: `:9105`)
+- `--debug` — enable debug logging
 
----
+### Verification
+
+```bash
+curl http://localhost:9105/health
+curl http://localhost:9105/metrics
+curl http://localhost:9105/metrics | grep modbus_value
+```
 
 ## Configuration
 
