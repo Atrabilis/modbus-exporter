@@ -18,7 +18,7 @@ Before running:
 
 ## Supported Platforms
 
-This image is published as a multi-architecture Docker manifest and can run on:
+This image is published as a multi-architecture Docker manifest since v0.1.1 and can run on:
 - linux/amd64 
 - linux/arm64 
 - linux/arm/v7 
