@@ -43,7 +43,14 @@ func main() {
 
 	st := store.New()
 	poller := modbus.NewPoller(cfg, st, *debug)
-	server := httpserver.New(*listenAddr, st)
+
+	// Por defecto activamos la métrica de age; si el config establece sample_age_enabled lo respetamos.
+	sampleAgeEnabled := true
+	if cfg.SampleAgeEnabled != nil {
+		sampleAgeEnabled = *cfg.SampleAgeEnabled
+	}
+
+	server := httpserver.New(*listenAddr, st, sampleAgeEnabled)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

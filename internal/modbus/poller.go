@@ -77,9 +77,10 @@ func (p *Poller) pollOnce() {
 
 			if p.debug {
 				log.Printf(
-					"modbus: device=%s slave=%d start",
+					"modbus: device=%s slave=%d slave_name=%q start",
 					dev.Name,
 					slave.SlaveID,
+					slave.Name,
 				)
 			}
 
@@ -98,9 +99,10 @@ func (p *Poller) pollOnce() {
 
 				if p.debug {
 					log.Printf(
-						"modbus: device=%s slave=%d register=%d effective=%d words=%d function=%d",
+						"modbus: device=%s slave=%d slave_name=%q register=%d effective=%d words=%d function=%d",
 						dev.Name,
 						slave.SlaveID,
+						slave.Name,
 						reg.Register,
 						effective,
 						reg.Words,
@@ -112,6 +114,16 @@ func (p *Poller) pollOnce() {
 				var err error
 
 				switch reg.FunctionCode {
+				case 1:
+					raw, err = client.ReadCoils(
+						uint16(effective),
+						uint16(reg.Words),
+					)
+				case 2:
+					raw, err = client.ReadDiscreteInputs(
+						uint16(effective),
+						uint16(reg.Words),
+					)
 				case 3:
 					raw, err = client.ReadHoldingRegisters(
 						uint16(effective),
@@ -141,9 +153,10 @@ func (p *Poller) pollOnce() {
 					decoded := UTF8(raw)
 					if p.debug {
 						log.Printf(
-							"modbus: device=%s slave=%d register=%d name=%s value=%q (UTF8)",
+							"modbus: device=%s slave=%d slave_name=%q register=%d name=%s value=%q (UTF8)",
 							dev.Name,
 							slave.SlaveID,
+							slave.Name,
 							reg.Register,
 							reg.Name,
 							decoded,
@@ -154,16 +167,26 @@ func (p *Poller) pollOnce() {
 						Timestamp:   time.Now().UTC(),
 						Device:      dev.Name,
 						SlaveID:     slave.SlaveID,
+						SlaveName:   slave.Name,
 						Register:    reg.Register,
 						Name:        reg.Name,
 						Unit:        reg.Unit,
 						IpAddress:   dev.Address,
+						MetricName:  dev.MetricName,
+						DeviceLabels: dev.Labels,
+						SlaveLabels:  slave.Labels,
 						StringValue: &decoded,
 					})
 					continue
 				}
 
-				value, ok := decode(reg.Datatype, raw)
+				var value float64
+				var ok bool
+				if reg.FunctionCode == 1 || reg.FunctionCode == 2 {
+					value, ok = decodeCoil(raw)
+				} else {
+					value, ok = decode(reg.Datatype, raw)
+				}
 				if !ok {
 					log.Printf(
 						"modbus: unsupported datatype device=%s slave=%d register=%d datatype=%s",
@@ -177,11 +200,28 @@ func (p *Poller) pollOnce() {
 
 				value *= reg.Gain
 
+				if reg.IgnoreNegative && value < 0 {
+					if p.debug {
+						log.Printf(
+							"modbus: device=%s slave=%d slave_name=%q register=%d name=%s value=%.6f %s ignored (negative)",
+							dev.Name,
+							slave.SlaveID,
+							slave.Name,
+							reg.Register,
+							reg.Name,
+							value,
+							reg.Unit,
+						)
+					}
+					continue
+				}
+
 				if p.debug {
 					log.Printf(
-						"modbus: device=%s slave=%d register=%d name=%s value=%.6f %s",
+						"modbus: device=%s slave=%d slave_name=%q register=%d name=%s value=%.6f %s",
 						dev.Name,
 						slave.SlaveID,
+						slave.Name,
 						reg.Register,
 						reg.Name,
 						value,
@@ -190,20 +230,31 @@ func (p *Poller) pollOnce() {
 				}
 
 				p.store.Set(store.Sample{
-					Value:     value,
-					Timestamp: time.Now().UTC(),
-					Device:    dev.Name,
-					SlaveID:   slave.SlaveID,
-					Register:  reg.Register,
-					Name:      reg.Name,
-					Unit:      reg.Unit,
-					IpAddress: dev.Address,
+					Value:       value,
+					Timestamp:   time.Now().UTC(),
+					Device:      dev.Name,
+					SlaveID:     slave.SlaveID,
+					SlaveName:   slave.Name,
+					Register:    reg.Register,
+					Name:        reg.Name,
+					Unit:        reg.Unit,
+					IpAddress:   dev.Address,
+					MetricName:  dev.MetricName,
+					DeviceLabels: dev.Labels,
+					SlaveLabels:  slave.Labels,
 				})
 			}
 		}
 
 		handler.Close()
 	}
+}
+
+func decodeCoil(raw []byte) (float64, bool) {
+	if len(raw) == 0 {
+		return 0, false
+	}
+	return float64(raw[0] & 0x01), true
 }
 
 func decode(datatype string, raw []byte) (float64, bool) {

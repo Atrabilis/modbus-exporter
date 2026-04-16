@@ -152,6 +152,10 @@ More detailed example:
 
 # Supported datatypes (case-sensitive):
 #
+# Boolean:
+#   - BOOL      : Coil / discrete input value (0 or 1)
+#   - BOOLEAN   : alias, same as BOOL
+#
 # Integer:
 #   - U8       : Unsigned 8-bit (low byte)
 #   - U16      : Unsigned 16-bit, big-endian

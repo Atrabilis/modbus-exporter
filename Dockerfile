@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.1-alpine AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -15,7 +15,7 @@ RUN CGO_ENABLED=0 \
     GOARCH=$TARGETARCH \
     go build -o modbus-exporter ./cmd/modbus-exporter
 
-FROM alpine:3.18
+FROM alpine:3.23.3
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /src/modbus-exporter /usr/local/bin/modbus-exporter
 ENTRYPOINT ["/usr/local/bin/modbus-exporter"]

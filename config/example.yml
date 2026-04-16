@@ -1,4 +1,5 @@
 poll_interval: 60s
+sample_age_enabled: true
 
 devices:
   - name: "ion_7400"
@@ -6,11 +7,18 @@ devices:
     address: "192.168.1.65"
     port: 502
     timeout: 1s
+    metric_name: "ion_value"
+    labels:
+      site: "building_A"
+      role: "main_meter"
 
     slaves:
       - name: "ion_7400"
         slave_id: 1
         offset: 1
+        labels:
+          location: "floor_1"
+          unit: "energetics"
         modbus_registers:
           - register: 3110
             function_code: 3
@@ -20,6 +28,7 @@ devices:
             datatype: "F32BE"
             unit: "Hz"
             gain: 1
+            ignore_negative: true
             flags:
 
   - name: "logger_3000"

@@ -11,12 +11,16 @@ type Sample struct {
 	Timestamp time.Time
 
 	// Identidad
-	Device    string
-	SlaveID   int
-	Register  int
-	Name      string
-	Unit      string
-	IpAddress string
+	Device      string
+	SlaveID     int
+	SlaveName   string
+	Register    int
+	Name        string
+	Unit        string
+	IpAddress   string
+	MetricName  string
+	DeviceLabels map[string]string
+	SlaveLabels  map[string]string
 
 	// StringValue es distinto de nil solo para registros UTF8 (valor en etiqueta, no numérico).
 	StringValue *string

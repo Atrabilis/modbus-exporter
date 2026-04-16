@@ -8,37 +8,42 @@ import (
 )
 
 type Config struct {
-	PollInterval time.Duration `yaml:"poll_interval"`
-	Devices      []Device      `yaml:"devices"`
+	PollInterval      time.Duration `yaml:"poll_interval"`
+	Devices           []Device      `yaml:"devices"`
+	SampleAgeEnabled  *bool         `yaml:"sample_age_enabled,omitempty"`
 }
 
 type Device struct {
-	Name     string        `yaml:"name"`
-	Protocol string        `yaml:"protocol"`
-	Address  string        `yaml:"address"`
-	Port     int           `yaml:"port"`
-	Timeout  time.Duration `yaml:"timeout"`
-	Flags    []string      `yaml:"flags,omitempty"`
-	Slaves   []Slave       `yaml:"slaves"`
+	Name     string            `yaml:"name"`
+	Protocol string            `yaml:"protocol"`
+	Address  string            `yaml:"address"`
+	Port     int               `yaml:"port"`
+	Timeout    time.Duration     `yaml:"timeout"`
+	MetricName string            `yaml:"metric_name,omitempty"`
+	Flags      []string          `yaml:"flags,omitempty"`
+	Labels     map[string]string `yaml:"labels,omitempty"`
+	Slaves     []Slave           `yaml:"slaves"`
 }
 
 type Slave struct {
-	Name      string     `yaml:"name"`
-	SlaveID   int        `yaml:"slave_id"`
-	Offset    int        `yaml:"offset"`
-	Registers []Register `yaml:"modbus_registers"`
+	Name      string            `yaml:"name"`
+	SlaveID   int               `yaml:"slave_id"`
+	Offset    int               `yaml:"offset"`
+	Labels    map[string]string `yaml:"labels,omitempty"`
+	Registers []Register        `yaml:"modbus_registers"`
 }
 
 type Register struct {
-	Register     int          `yaml:"register"`
-	FunctionCode int          `yaml:"function_code"`
-	Name         string       `yaml:"name"`
-	Description  string       `yaml:"description"`
-	Words        int          `yaml:"words"`
-	Datatype     string       `yaml:"datatype"`
-	Unit         string       `yaml:"unit"`
-	Gain         float64      `yaml:"gain"`
-	Flags        RegisterFlag `yaml:"flags,omitempty"`
+	Register       int          `yaml:"register"`
+	FunctionCode   int          `yaml:"function_code"`
+	Name           string       `yaml:"name"`
+	Description    string       `yaml:"description"`
+	Words          int          `yaml:"words"`
+	Datatype       string       `yaml:"datatype"`
+	Unit           string       `yaml:"unit"`
+	Gain           float64      `yaml:"gain"`
+	IgnoreNegative bool         `yaml:"ignore_negative,omitempty"`
+	Flags          RegisterFlag `yaml:"flags,omitempty"`
 }
 
 type RegisterFlag struct {

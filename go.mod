@@ -1,6 +1,6 @@
 module github.com/atrabilis/modbus-exporter
 
-go 1.25.6
+go 1.26.1
 
 require (
 	github.com/goburrow/modbus v0.1.0

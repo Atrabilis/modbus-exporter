@@ -10,14 +10,16 @@ import (
 )
 
 type Server struct {
-	addr  string
-	store *store.Store
+	addr             string
+	store            *store.Store
+	sampleAgeEnabled bool
 }
 
-func New(addr string, store *store.Store) *Server {
+func New(addr string, store *store.Store, sampleAgeEnabled bool) *Server {
 	return &Server{
-		addr:  addr,
-		store: store,
+		addr:             addr,
+		store:            store,
+		sampleAgeEnabled: sampleAgeEnabled,
 	}
 }
 
@@ -49,45 +51,76 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "# TYPE modbus_register_info gauge\n")
 
 	for _, sm := range samples {
+		labelSet := func() string {
+			labels := map[string]string{
+				"device":      sm.Device,
+				"slave":       fmt.Sprintf("%d", sm.SlaveID),
+				"slave_name":  sm.SlaveName,
+				"register":    fmt.Sprintf("%d", sm.Register),
+				"name":        sm.Name,
+				"unit":        sm.Unit,
+				"ip_address":  sm.IpAddress,
+			}
+
+			for k, v := range sm.DeviceLabels {
+				labels["device_label_"+k] = v
+			}
+			for k, v := range sm.SlaveLabels {
+				labels["slave_label_"+k] = v
+			}
+
+			return formatLabels(labels)
+		}()
+
 		if sm.StringValue != nil {
-			// Registro UTF8: exponer como info (valor en etiqueta, gauge=1).
-			fmt.Fprintf(
-				w,
-				"modbus_register_info{device=%q,slave=%q,register=%q,name=%q,unit=%q,ip_address=%q,value=%q} 1\n",
-				sm.Device,
-				fmt.Sprintf("%d", sm.SlaveID),
-				fmt.Sprintf("%d", sm.Register),
-				sm.Name,
-				sm.Unit,
-				sm.IpAddress,
-				*sm.StringValue,
-			)
+			fmt.Fprintf(w, "modbus_register_info{%s,value=%q} 1\n", labelSet, *sm.StringValue)
 		} else {
-			// Registro numérico.
-			fmt.Fprintf(
-				w,
-				"modbus_value{device=%q,slave=%q,register=%q,name=%q,unit=%q,ip_address=%q} %f\n",
-				sm.Device,
-				fmt.Sprintf("%d", sm.SlaveID),
-				fmt.Sprintf("%d", sm.Register),
-				sm.Name,
-				sm.Unit,
-				sm.IpAddress,
-				sm.Value,
-			)
+			metricName := "modbus_value"
+			if sm.MetricName != "" {
+				metricName = sm.MetricName
+			}
+			fmt.Fprintf(w, "%s{%s} %f\n", metricName, labelSet, sm.Value)
 		}
 	}
 
-	for _, sm := range samples {
-		age := now.Sub(sm.Timestamp).Seconds()
-		fmt.Fprintf(
-			w,
-			"modbus_sample_age_seconds{device=%q,slave=%q,register=%q,ip_address=%q} %f\n",
-			sm.Device,
-			fmt.Sprintf("%d", sm.SlaveID),
-			fmt.Sprintf("%d", sm.Register),
-			sm.IpAddress,
-			age,
-		)
+
+	if s.sampleAgeEnabled {
+		for _, sm := range samples {
+			labelSet := map[string]string{
+				"device":      sm.Device,
+				"slave":       fmt.Sprintf("%d", sm.SlaveID),
+				"slave_name":  sm.SlaveName,
+				"register":    fmt.Sprintf("%d", sm.Register),
+				"ip_address":  sm.IpAddress,
+			}
+
+			for k, v := range sm.DeviceLabels {
+				labelSet["device_label_"+k] = v
+			}
+			for k, v := range sm.SlaveLabels {
+				labelSet["slave_label_"+k] = v
+			}
+
+			age := now.Sub(sm.Timestamp).Seconds()
+			fmt.Fprintf(
+				w,
+				"modbus_sample_age_seconds{%s} %f\n",
+				formatLabels(labelSet),
+				age,
+			)
+		}
 	}
+}
+
+func formatLabels(labels map[string]string) string {
+	first := true
+	buf := ""
+	for k, v := range labels {
+		if !first {
+			buf += ","
+		}
+		first = false
+		buf += fmt.Sprintf("%s=\"%s\"", k, v)
+	}
+	return buf
 }
