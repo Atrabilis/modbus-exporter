@@ -154,10 +154,13 @@ func (p *Poller) pollOnce() {
 						Timestamp:   time.Now().UTC(),
 						Device:      dev.Name,
 						SlaveID:     slave.SlaveID,
+						SlaveName:   slave.Name,
 						Register:    reg.Register,
 						Name:        reg.Name,
 						Unit:        reg.Unit,
 						IpAddress:   dev.Address,
+						ModuleNumber: reg.Flags.ModuleNumber,
+						ModuleLabel:  reg.Flags.ModuleLabel,
 						StringValue: &decoded,
 					})
 					continue
@@ -190,14 +193,17 @@ func (p *Poller) pollOnce() {
 				}
 
 				p.store.Set(store.Sample{
-					Value:     value,
-					Timestamp: time.Now().UTC(),
-					Device:    dev.Name,
-					SlaveID:   slave.SlaveID,
-					Register:  reg.Register,
-					Name:      reg.Name,
-					Unit:      reg.Unit,
-					IpAddress: dev.Address,
+					Value:        value,
+					Timestamp:    time.Now().UTC(),
+					Device:       dev.Name,
+					SlaveID:      slave.SlaveID,
+					SlaveName:    slave.Name,
+					Register:     reg.Register,
+					Name:         reg.Name,
+					Unit:         reg.Unit,
+					IpAddress:    dev.Address,
+					ModuleNumber: reg.Flags.ModuleNumber,
+					ModuleLabel:  reg.Flags.ModuleLabel,
 				})
 			}
 		}

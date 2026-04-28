@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/atrabilis/modbus-exporter/internal/store"
@@ -53,26 +55,15 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 			// Registro UTF8: exponer como info (valor en etiqueta, gauge=1).
 			fmt.Fprintf(
 				w,
-				"modbus_register_info{device=%q,slave=%q,register=%q,name=%q,unit=%q,ip_address=%q,value=%q} 1\n",
-				sm.Device,
-				fmt.Sprintf("%d", sm.SlaveID),
-				fmt.Sprintf("%d", sm.Register),
-				sm.Name,
-				sm.Unit,
-				sm.IpAddress,
-				*sm.StringValue,
+				"modbus_register_info{%s} 1\n",
+				buildMetricLabels(sm, true, sm.StringValue),
 			)
 		} else {
 			// Registro numérico.
 			fmt.Fprintf(
 				w,
-				"modbus_value{device=%q,slave=%q,register=%q,name=%q,unit=%q,ip_address=%q} %f\n",
-				sm.Device,
-				fmt.Sprintf("%d", sm.SlaveID),
-				fmt.Sprintf("%d", sm.Register),
-				sm.Name,
-				sm.Unit,
-				sm.IpAddress,
+				"modbus_value{%s} %f\n",
+				buildMetricLabels(sm, false, nil),
 				sm.Value,
 			)
 		}
@@ -82,12 +73,52 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		age := now.Sub(sm.Timestamp).Seconds()
 		fmt.Fprintf(
 			w,
-			"modbus_sample_age_seconds{device=%q,slave=%q,register=%q,ip_address=%q} %f\n",
-			sm.Device,
-			fmt.Sprintf("%d", sm.SlaveID),
-			fmt.Sprintf("%d", sm.Register),
-			sm.IpAddress,
+			"modbus_sample_age_seconds{%s} %f\n",
+			buildAgeMetricLabels(sm),
 			age,
 		)
 	}
+}
+
+func buildMetricLabels(sm store.Sample, includeValue bool, stringValue *string) string {
+	labels := []string{
+		fmt.Sprintf("device=%q", sm.Device),
+		fmt.Sprintf("slave=%q", strconv.Itoa(sm.SlaveID)),
+		fmt.Sprintf("slave_name=%q", sm.SlaveName),
+		fmt.Sprintf("register=%q", strconv.Itoa(sm.Register)),
+		fmt.Sprintf("name=%q", sm.Name),
+		fmt.Sprintf("unit=%q", sm.Unit),
+		fmt.Sprintf("ip_address=%q", sm.IpAddress),
+	}
+
+	if sm.ModuleNumber != 0 {
+		labels = append(labels, fmt.Sprintf("module_number=%q", strconv.Itoa(sm.ModuleNumber)))
+	}
+	if sm.ModuleLabel != "" {
+		labels = append(labels, fmt.Sprintf("module_label=%q", sm.ModuleLabel))
+	}
+	if includeValue && stringValue != nil {
+		labels = append(labels, fmt.Sprintf("value=%q", *stringValue))
+	}
+
+	return strings.Join(labels, ",")
+}
+
+func buildAgeMetricLabels(sm store.Sample) string {
+	labels := []string{
+		fmt.Sprintf("device=%q", sm.Device),
+		fmt.Sprintf("slave=%q", strconv.Itoa(sm.SlaveID)),
+		fmt.Sprintf("slave_name=%q", sm.SlaveName),
+		fmt.Sprintf("register=%q", strconv.Itoa(sm.Register)),
+		fmt.Sprintf("ip_address=%q", sm.IpAddress),
+	}
+
+	if sm.ModuleNumber != 0 {
+		labels = append(labels, fmt.Sprintf("module_number=%q", strconv.Itoa(sm.ModuleNumber)))
+	}
+	if sm.ModuleLabel != "" {
+		labels = append(labels, fmt.Sprintf("module_label=%q", sm.ModuleLabel))
+	}
+
+	return strings.Join(labels, ",")
 }
