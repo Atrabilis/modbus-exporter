@@ -436,6 +436,21 @@ Revert the image tag to the previous version and restart the container.
 
 ---
 
+## Testing
+
+```bash
+go vet ./...
+go test ./...
+```
+
+`cmd/modbus-exporter/e2e_test.go` builds the exporter, runs it against a fake Modbus TCP device (the server from `github.com/simonvetter/modbus`, a test-only dependency) and scrapes `/metrics`. The output is parsed with Prometheus' own text parser (`github.com/prometheus/common/expfmt`, test-only), so any format error that would make Prometheus reject the scrape fails the test. It covers every datatype used in production, a text register padded with NUL, a text register with `0xFF` padding and control characters, and a device that stops answering (the last value stays and `modbus_sample_age_seconds` keeps growing).
+
+`internal/httpserver/server_test.go` has `FuzzLabelValue`: any label value must produce a line Prometheus accepts and reads back unchanged. Its seeds run with `go test`; to explore further:
+
+```bash
+go test -run '^$' -fuzz='^FuzzLabelValue$' -fuzztime=30s ./internal/httpserver
+```
+
 ## License
 
 MIT

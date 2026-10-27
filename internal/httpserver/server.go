@@ -82,23 +82,23 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 
 func buildMetricLabels(sm store.Sample, includeValue bool, stringValue *string) string {
 	labels := []string{
-		fmt.Sprintf("device=%q", sm.Device),
-		fmt.Sprintf("slave=%q", strconv.Itoa(sm.SlaveID)),
-		fmt.Sprintf("slave_name=%q", sm.SlaveName),
-		fmt.Sprintf("register=%q", strconv.Itoa(sm.Register)),
-		fmt.Sprintf("name=%q", sm.Name),
-		fmt.Sprintf("unit=%q", sm.Unit),
-		fmt.Sprintf("ip_address=%q", sm.IpAddress),
+		fmt.Sprintf("device=%s", labelValue(sm.Device)),
+		fmt.Sprintf("slave=%s", labelValue(strconv.Itoa(sm.SlaveID))),
+		fmt.Sprintf("slave_name=%s", labelValue(sm.SlaveName)),
+		fmt.Sprintf("register=%s", labelValue(strconv.Itoa(sm.Register))),
+		fmt.Sprintf("name=%s", labelValue(sm.Name)),
+		fmt.Sprintf("unit=%s", labelValue(sm.Unit)),
+		fmt.Sprintf("ip_address=%s", labelValue(sm.IpAddress)),
 	}
 
 	if sm.ModuleNumber != 0 {
-		labels = append(labels, fmt.Sprintf("module_number=%q", strconv.Itoa(sm.ModuleNumber)))
+		labels = append(labels, fmt.Sprintf("module_number=%s", labelValue(strconv.Itoa(sm.ModuleNumber))))
 	}
 	if sm.ModuleLabel != "" {
-		labels = append(labels, fmt.Sprintf("module_label=%q", sm.ModuleLabel))
+		labels = append(labels, fmt.Sprintf("module_label=%s", labelValue(sm.ModuleLabel)))
 	}
 	if includeValue && stringValue != nil {
-		labels = append(labels, fmt.Sprintf("value=%q", *stringValue))
+		labels = append(labels, fmt.Sprintf("value=%s", labelValue(*stringValue)))
 	}
 
 	return strings.Join(labels, ",")
@@ -106,19 +106,31 @@ func buildMetricLabels(sm store.Sample, includeValue bool, stringValue *string) 
 
 func buildAgeMetricLabels(sm store.Sample) string {
 	labels := []string{
-		fmt.Sprintf("device=%q", sm.Device),
-		fmt.Sprintf("slave=%q", strconv.Itoa(sm.SlaveID)),
-		fmt.Sprintf("slave_name=%q", sm.SlaveName),
-		fmt.Sprintf("register=%q", strconv.Itoa(sm.Register)),
-		fmt.Sprintf("ip_address=%q", sm.IpAddress),
+		fmt.Sprintf("device=%s", labelValue(sm.Device)),
+		fmt.Sprintf("slave=%s", labelValue(strconv.Itoa(sm.SlaveID))),
+		fmt.Sprintf("slave_name=%s", labelValue(sm.SlaveName)),
+		fmt.Sprintf("register=%s", labelValue(strconv.Itoa(sm.Register))),
+		fmt.Sprintf("ip_address=%s", labelValue(sm.IpAddress)),
 	}
 
 	if sm.ModuleNumber != 0 {
-		labels = append(labels, fmt.Sprintf("module_number=%q", strconv.Itoa(sm.ModuleNumber)))
+		labels = append(labels, fmt.Sprintf("module_number=%s", labelValue(strconv.Itoa(sm.ModuleNumber))))
 	}
 	if sm.ModuleLabel != "" {
-		labels = append(labels, fmt.Sprintf("module_label=%q", sm.ModuleLabel))
+		labels = append(labels, fmt.Sprintf("module_label=%s", labelValue(sm.ModuleLabel)))
 	}
 
 	return strings.Join(labels, ",")
+}
+
+// labelEscaper applies the only escapes the Prometheus text format accepts in
+// label values: backslash, double quote and line feed.
+var labelEscaper = strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`)
+
+// labelValue quotes a label value for the Prometheus text format. Go's %q is
+// not valid here: it writes escapes like \t or \xff that Prometheus rejects,
+// and one bad value makes it drop the whole scrape. Bytes that are not valid
+// UTF-8 (e.g. 0xFF padding in device strings) become U+FFFD.
+func labelValue(v string) string {
+	return `"` + labelEscaper.Replace(strings.ToValidUTF8(v, "\uFFFD")) + `"`
 }
