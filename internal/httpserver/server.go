@@ -33,7 +33,7 @@ func (s *Server) Run() error {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }
 
 func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
@@ -43,24 +43,24 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 
 	// Comentarios Prometheus: HELP y TYPE para cada métrica.
-	fmt.Fprint(w, "# HELP modbus_value Current value of the Modbus register (numeric).\n")
-	fmt.Fprint(w, "# TYPE modbus_value gauge\n")
-	fmt.Fprint(w, "# HELP modbus_sample_age_seconds Age in seconds since the last successful poll.\n")
-	fmt.Fprint(w, "# TYPE modbus_sample_age_seconds gauge\n")
-	fmt.Fprint(w, "# HELP modbus_register_info Info from UTF-8 string registers (string value in label).\n")
-	fmt.Fprint(w, "# TYPE modbus_register_info gauge\n")
+	_, _ = fmt.Fprint(w, "# HELP modbus_value Current value of the Modbus register (numeric).\n")
+	_, _ = fmt.Fprint(w, "# TYPE modbus_value gauge\n")
+	_, _ = fmt.Fprint(w, "# HELP modbus_sample_age_seconds Age in seconds since the last successful poll.\n")
+	_, _ = fmt.Fprint(w, "# TYPE modbus_sample_age_seconds gauge\n")
+	_, _ = fmt.Fprint(w, "# HELP modbus_register_info Info from UTF-8 string registers (string value in label).\n")
+	_, _ = fmt.Fprint(w, "# TYPE modbus_register_info gauge\n")
 
 	for _, sm := range samples {
 		if sm.StringValue != nil {
 			// Registro UTF8: exponer como info (valor en etiqueta, gauge=1).
-			fmt.Fprintf(
+			_, _ = fmt.Fprintf(
 				w,
 				"modbus_register_info{%s} 1\n",
 				buildMetricLabels(sm, true, sm.StringValue),
 			)
 		} else {
 			// Registro numérico.
-			fmt.Fprintf(
+			_, _ = fmt.Fprintf(
 				w,
 				"modbus_value{%s} %f\n",
 				buildMetricLabels(sm, false, nil),
@@ -71,7 +71,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 
 	for _, sm := range samples {
 		age := now.Sub(sm.Timestamp).Seconds()
-		fmt.Fprintf(
+		_, _ = fmt.Fprintf(
 			w,
 			"modbus_sample_age_seconds{%s} %f\n",
 			buildAgeMetricLabels(sm),

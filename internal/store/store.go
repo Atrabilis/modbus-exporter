@@ -12,13 +12,13 @@ type Sample struct {
 	Timestamp time.Time
 
 	// Identidad
-	Device    string
-	SlaveID   int
-	SlaveName string
-	Register  int
-	Name      string
-	Unit      string
-	IpAddress string
+	Device       string
+	SlaveID      int
+	SlaveName    string
+	Register     int
+	Name         string
+	Unit         string
+	IpAddress    string
 	ModuleNumber int
 	ModuleLabel  string
 

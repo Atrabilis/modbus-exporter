@@ -150,18 +150,18 @@ func (p *Poller) pollOnce() {
 						)
 					}
 					p.store.Set(store.Sample{
-						Value:       1,
-						Timestamp:   time.Now().UTC(),
-						Device:      dev.Name,
-						SlaveID:     slave.SlaveID,
-						SlaveName:   slave.Name,
-						Register:    reg.Register,
-						Name:        reg.Name,
-						Unit:        reg.Unit,
-						IpAddress:   dev.Address,
+						Value:        1,
+						Timestamp:    time.Now().UTC(),
+						Device:       dev.Name,
+						SlaveID:      slave.SlaveID,
+						SlaveName:    slave.Name,
+						Register:     reg.Register,
+						Name:         reg.Name,
+						Unit:         reg.Unit,
+						IpAddress:    dev.Address,
 						ModuleNumber: reg.Flags.ModuleNumber,
 						ModuleLabel:  reg.Flags.ModuleLabel,
-						StringValue: &decoded,
+						StringValue:  &decoded,
 					})
 					continue
 				}
@@ -208,7 +208,7 @@ func (p *Poller) pollOnce() {
 			}
 		}
 
-		handler.Close()
+		_ = handler.Close()
 	}
 }
 

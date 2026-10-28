@@ -70,7 +70,7 @@ func freePort(t *testing.T) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 	return ln.Addr().(*net.TCPAddr).Port
 }
 
@@ -180,7 +180,7 @@ devices:
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		if resp, err := http.Get(e.url + "/health"); err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return e
 		}
 		time.Sleep(50 * time.Millisecond)
@@ -197,7 +197,7 @@ func (e *exporter) scrape(t *testing.T) map[string]*dto.MetricFamily {
 	if err != nil {
 		t.Fatalf("scrape: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatal(err)
