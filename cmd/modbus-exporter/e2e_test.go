@@ -115,10 +115,30 @@ func set(m map[uint16]uint16, addr uint16, words ...uint16) {
 	}
 }
 
+// syncBuffer collects the exporter's output. exec.Cmd writes to it from its
+// own goroutine while the test reads it, so a plain strings.Builder is a data
+// race (found by go test -race).
+type syncBuffer struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
 type exporter struct {
 	cmd  *exec.Cmd
 	url  string
-	logs *strings.Builder
+	logs *syncBuffer
 }
 
 // startExporter builds and runs the binary with a config that polls the fake
@@ -128,6 +148,11 @@ func startExporter(t *testing.T, devicePort int, registers string) *exporter {
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "modbus-exporter")
 	args := []string{"build", "-o", bin}
+	// E2E_RACE=1 (set in CI) builds the binary with the race detector, so a
+	// data race in the program itself fails the test, not only one in test code.
+	if os.Getenv("E2E_RACE") != "" {
+		args = append(args, "-race")
+	}
 	coverDir := os.Getenv("MODBUS_EXPORTER_E2E_COVERDIR")
 	if coverDir != "" {
 		args = append(args, "-cover", "-coverpkg=github.com/atrabilis/modbus-exporter/...")
@@ -155,7 +180,7 @@ devices:
 	}
 
 	listen := fmt.Sprintf("127.0.0.1:%d", freePort(t))
-	logs := &strings.Builder{}
+	logs := &syncBuffer{}
 	cmd := exec.Command(bin, "-config", cfgPath, "-listen", listen)
 	cmd.Stdout, cmd.Stderr = logs, logs
 	if coverDir != "" {
@@ -173,6 +198,11 @@ devices:
 		case <-done:
 		case <-time.After(5 * time.Second):
 			_ = cmd.Process.Kill()
+		}
+		// The exporter runs until it is stopped, so a race report only shows in
+		// its output.
+		if strings.Contains(logs.String(), "DATA RACE") {
+			t.Errorf("the exporter reported a data race\n%s", logs.String())
 		}
 	})
 
